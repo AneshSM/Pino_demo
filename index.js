@@ -96,12 +96,18 @@ app.use((err, req, res, next) => {
 
 // Unhandled exceptions and rejections
 process.on("uncaughtException", (err) => {
-  Loggers.systemLogger.fatal({ err }, "Uncaught Exception");
+  Loggers.systemLogger.fatal(
+    { code: "UNCAUGHT_EXCEPTION", context: "uncaught exception", err },
+    "Uncaught Exception"
+  );
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason) => {
-  Loggers.systemLogger.error({ reason }, "Unhandled Rejection");
+  Loggers.systemLogger.error(
+    { code: "UNHANDLED_REJECTION", context: "unhandled rejection", reason },
+    "Unhandled Rejection"
+  );
 });
 
 // Start the server
