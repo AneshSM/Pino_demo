@@ -171,12 +171,13 @@ const createLogger = (loggerKey, loggerCategory) => {
     const options = {
       level: "debug", // Logs messages up to the "debug" level
       customLevels: {}, // Add custom levels here if needed
-      timestamp: () => `,"time":"${new Date().toLocaleString()}"`,
+      timestamp: () => `,"time":"${new Date().toLocaleString()}"`, //local machine date
+      errorKey: "error", // The string key for the 'error' in the JSON object.
+
       // Inject a "type" field based on the log level
       mixin(_context, level) {
         return { type: pino.levels.labels[level]?.toUpperCase() };
       },
-
       // Merge strategy to ensure flat logging structure
       mixinMergeStrategy(mergeObject, mixinObject) {
         return { ...mergeObject, ...mixinObject };

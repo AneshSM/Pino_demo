@@ -86,18 +86,18 @@ app.get("/child-log", (req, res) => {
 });
 
 // Error handling
-app.use((err, req, res, next) => {
+app.use((error, req, res, next) => {
   Loggers.systemLogger.error(
-    { code: "SERVER_ERROR", context: "server error" },
+    { code: "SERVER_ERROR", context: "server error", error },
     "Unhandled exception"
   );
   res.status(500).send("Internal Server Error");
 });
 
 // Unhandled exceptions and rejections
-process.on("uncaughtException", (err) => {
+process.on("uncaughtException", (error) => {
   Loggers.systemLogger.fatal(
-    { code: "UNCAUGHT_EXCEPTION", context: "uncaught exception", err },
+    { code: "UNCAUGHT_EXCEPTION", context: "uncaught exception", error },
     "Uncaught Exception"
   );
   process.exit(1);
@@ -114,7 +114,7 @@ process.on("unhandledRejection", (reason) => {
 app.listen(port, () => {
   Loggers.systemLogger.debug("Server started");
   Loggers.systemLogger.info(
-    { code: "SERVER_START", context: "server started" },
+    { code: "INITIATE_SERVER", context: "server started" },
     `Server is running on http://localhost:${port}`
   );
 });
