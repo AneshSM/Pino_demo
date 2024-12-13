@@ -2,26 +2,29 @@ import pino from "pino";
 import Loggers from "./loggers.json" assert { type: "json" };
 
 /**
- * Validates the meta data passed to the logger wrapper before passing to pino
- * methods and ensures it has the required fields.
+ * Validates metadata passed to the logger wrapper before logging.
+ * Ensures the metadata contains required fields as per the schema.
  *
- * @param loggerKey - logger key of pino_loggers.json object
- * @param method - avaialbe logger methods
- * @param schema - logger schema as pino_loggers.json structure
- * @param obj - logger key defined in pino_loggers.json
- * @throws {Error} - If the configuration is invalid.
+ * @param {string} loggerKey - The logger key (e.g., "validationLogger").
+ * @param {string} method - The log method being used (e.g., "info", "warn", "error").
+ * @param {Object} schema - The logger schema from the configuration.
+ * @param {Object} metadata - Metadata object to validate.
+ * @throws {Error} - If required fields are missing.
  */
-const validateFields = (loggerKey, method, schema, obj) => {
+const validateMetadata = (loggerKey, method, schema, metadata) => {
   const requiredFields = schema[loggerKey]?.["required"]?.[method] || [];
-  if ((typeof obj !== "object" || !obj) && requiredFields.length > 0) {
-    throw new Error(
-      `Missing required fields for ${loggerKey}.${method}: ${requiredFields.join(
-        ", "
-      )}`
-    );
+  if (!metadata || typeof metadata !== "object") {
+    if (requiredFields.length > 0) {
+      throw new Error(
+        `Missing required metadata for ${loggerKey}.${method}. Required fields: ${requiredFields.join(
+          ", "
+        )}`
+      );
+    }
   } else {
-    const missingFields = requiredFields.filter((field) => !(field in obj));
-
+    const missingFields = requiredFields.filter(
+      (field) => !(field in metadata)
+    );
     if (missingFields.length > 0) {
       throw new Error(
         `Missing required fields for ${loggerKey}.${method}: ${missingFields.join(
@@ -33,32 +36,33 @@ const validateFields = (loggerKey, method, schema, obj) => {
 };
 
 /**
- * Wraps a pino logger method with validation logic.
- * Which will validate the data before passing it to the pino logger function
+ * Wraps a Pino logger method with validation logic.
+ * Validates metadata against schema before calling the original logger method.
  *
- * @param originalFn - The original logger method (info/warn/error).
- * @param loggerKey - The logger name (e.g., "validationLogger").
- * @param method - The method being wrapped (info/warn/error).
+ * @param {Function} originalMethod - The original logger method (info, warn, error, etc.).
+ * @param {string} loggerKey - The logger key (e.g., "validationLogger").
+ * @param {string} method - The log method being wrapped (e.g., "info", "warn").
  * @returns {Function} - The wrapped logger method.
  */
-const wrapLoggerMethod = (originalFn, loggerKey, method) => {
-  return (obj, msg, ...args) => {
-    validateFields(loggerKey, method, Loggers, obj);
-    return originalFn(obj, msg, ...args);
+const wrapLoggerMethod = (originalMethod, loggerKey, method) => {
+  return (metadata, msg, ...args) => {
+    validateMetadata(loggerKey, method, Loggers, metadata); // Validate metadata
+    return originalMethod(metadata, msg, ...args); // Call the original method
   };
 };
 
 /**
- * Dynamically wraps logger methods with validation logic.
+ * Wraps all methods of a logger instance with validation logic.
  *
- * @param logger - The original logger instance.
- * @param loggerKey - The logger name (e.g., "validationLogger").
+ * @param {pino.Logger} logger - The original Pino logger instance.
+ * @param {string} loggerKey - The logger key (e.g., "validationLogger").
  * @returns {pino.Logger} - The wrapped logger instance.
  */
 const wrapLogger = (logger, loggerKey) => {
-  const wrappedLogger = logger.child({}); // Clone the logger instance for better isolation and thread safety
+  const wrappedLogger = logger.child({}); // Clone the logger instance for isolation
+  const methods = ["info", "warn", "error", "debug", "fatal", "trace"];
 
-  ["info", "warn", "error", "debug", "fatal", "trace"].forEach((method) => {
+  methods.forEach((method) => {
     wrappedLogger[method] = wrapLoggerMethod(
       logger[method].bind(logger),
       loggerKey,
@@ -70,17 +74,16 @@ const wrapLogger = (logger, loggerKey) => {
 };
 
 /**
- * Validates the `loggers.json` configuration and ensures it has the correct structure.
+ * Validates the logger configuration schema.
  *
- * @param config - The parsed loggers.json configuration.
- * @returns {Object} - The validated logger configuration.
+ * @param {Object} config - The logger configuration object.
+ * @returns {Object} - The validated configuration.
  * @throws {Error} - If the configuration is invalid.
  */
 const validateLoggerConfig = (config) => {
   if (!config || typeof config !== "object" || Array.isArray(config)) {
     throw new Error("Invalid or missing `loggers.json` configuration.");
   }
-
   // Ensure all keys and values are valid
   Object.entries(config).forEach(([key, value]) => {
     if (
@@ -88,7 +91,7 @@ const validateLoggerConfig = (config) => {
       typeof value !== "object" ||
       !value.category
     ) {
-      throw new Error(`Invalid logger configuration: ${key} -> ${value}`);
+      throw new Error(`Invalid logger configuration for "${key}".`);
     }
   });
 
@@ -96,75 +99,54 @@ const validateLoggerConfig = (config) => {
 };
 
 /**
- * Generates a date-based file path for logging.
- *
- * @param {string} parent - The parent folder (e.g., "Validation", "System").
- * @param {string} context - The context used for the file name prefix (e.g., "error", "info").
- * @returns {string} - The dynamically generated log file path.
+ * Generates transport configurations for logging to files and console,
+ * Generated files are date based.
+ * @param {string} category - The logger category (e.g., "Validation").
+ * @returns {Array} - Array of transport targets for Pino.
  */
-const generateLogFilePath = (parent, context) => {
-  try {
-    const date = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
-    return `./logs/${parent}/${context}-${date}.log`;
-  } catch (error) {
-    console.error("Error generating log file path:", error);
-    throw new Error("Failed to generate log file path.");
-  }
+const createTransportConfig = (category) => {
+  const date = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
+  return [
+    {
+      target: "pino-pretty",
+      options: {
+        colorize: true,
+        translateTime: "SYS:standard", // Formats time as `YYYY-MM-DD HH:mm:ss`
+      },
+    },
+    {
+      target: "pino/file",
+      level: "error",
+      options: {
+        destination: `./logs/${category}/error-${date}.log`,
+        mkdir: true,
+      },
+    },
+    {
+      target: "pino/file",
+      level: "warn",
+      options: {
+        destination: `./logs/${category}/warn-${date}.log`,
+        mkdir: true,
+      },
+    },
+    {
+      target: "pino/file",
+      level: "info",
+      options: {
+        destination: `./logs/${category}/info-${date}.log`,
+        mkdir: true,
+      },
+    },
+  ];
 };
 
 /**
- * Creates transport configurations for different log levels.
+ * Creates a Pino logger instance for a given logger key and category.
  *
- * @param {string} loggerCategory - The logger field name (e.g., "Validation").
- * @returns {Array} - Array of transport targets for pino.
- */
-const createTransportConfig = (loggerCategory) => {
-  try {
-    return [
-      {
-        target: "pino-pretty",
-        options: {
-          colorize: true, // Enable colored output
-          translateTime: "SYS:standard", // Formats time as `YYYY-MM-DD HH:mm:ss`
-        },
-      },
-      {
-        target: "pino/file",
-        level: "error",
-        options: {
-          destination: generateLogFilePath(loggerCategory, "error"),
-          mkdir: true, // Automatically create missing directories
-        },
-      },
-      {
-        target: "pino/file",
-        level: "warn",
-        options: {
-          destination: generateLogFilePath(loggerCategory, "warn"),
-          mkdir: true,
-        },
-      },
-      {
-        target: "pino/file",
-        level: "info",
-        options: {
-          destination: generateLogFilePath(loggerCategory, "info"),
-          mkdir: true,
-        },
-      },
-    ];
-  } catch (error) {
-    console.error("Error creating transport configuration:", error);
-    throw new Error("Failed to create transport configuration.");
-  }
-};
-
-/**
- * Initializes a pino logger instance for a given context.
- *
- * @param {string} loggerKey - The logger key (e.g., "validation").
- * @param {string} loggerCategory - The logger display name (e.g., "Validation").
- * @returns {pino.Logger} - Configured pino logger instance.
+ * @param {string} loggerKey - The logger key (e.g., "validationLogger").
+ * @param {string} category - The logger category (e.g., "Validation").
+ * @returns {pino.Logger} - The created Pino logger instance.
  */
 const createLogger = (loggerKey, loggerCategory) => {
   try {
@@ -205,15 +187,16 @@ const generateLoggers = () => {
     const config = validateLoggerConfig(Loggers);
 
     return Object.entries(config).reduce((acc, [loggerKey, loggerConfig]) => {
-      if (!loggerKey || !loggerConfig || !loggerConfig.category) {
+      if (!loggerKey || !loggerConfig || !loggerConfig?.category) {
         console.warn(
           `Skipping invalid logger configuration: ${loggerKey} -> ${loggerConfig}`
         );
         return acc; // Skip invalid logger configuration
+      } else {
+        const { category } = loggerConfig;
+        const logger = createLogger(loggerKey, category);
+        acc[loggerKey] = wrapLogger(logger, loggerKey);
       }
-      const { category } = loggerConfig;
-      const logger = createLogger(loggerKey, category);
-      acc[loggerKey] = wrapLogger(logger, loggerKey);
       return acc;
     }, {});
   } catch (error) {
@@ -229,6 +212,10 @@ const generateLoggers = () => {
 let loggers = {};
 
 try {
+  if (!Object.keys(Loggers).length)
+    console.log(
+      "Loggers are not initiated as there is no loggers configuration in logger.json"
+    );
   loggers = generateLoggers();
 } catch (error) {
   // console.error(

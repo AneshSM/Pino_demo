@@ -5,7 +5,7 @@ const app = express();
 const port = 3000;
 // Routes
 app.get("/", (req, res) => {
-  Loggers.systemLogger.info(
+  Loggers?.systemLogger?.info(
     { code: "ROOT_API", context: "root api call" },
     "GET / request received"
   ); // Use request logger
@@ -13,7 +13,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/validation", (req, res) => {
-  Loggers.validationLogger.info(
+  Loggers?.validationLogger?.info(
     {
       code: "VALIDATION_KEY_SUCCESS",
       context: "Successull license key validation",
@@ -24,7 +24,7 @@ app.get("/validation", (req, res) => {
 });
 
 app.get("/authentication", (req, res) => {
-  Loggers.authLogger.error(
+  Loggers?.authLogger?.error(
     {
       code: "AUTH_LICENSE_NOT_FOUND",
       context: "license key not found",
@@ -35,7 +35,7 @@ app.get("/authentication", (req, res) => {
 });
 
 app.get("/system", (req, res) => {
-  Loggers.systemLogger.warn(
+  Loggers?.systemLogger?.warn(
     {
       code: "SYSTEM_INVALID_CLOCK",
       context: "Invalid System Clock",
@@ -46,7 +46,7 @@ app.get("/system", (req, res) => {
 });
 
 app.get("/usage", (req, res) => {
-  Loggers.usageLogger.info(
+  Loggers?.usageLogger?.info(
     {
       code: "USAGE_RECORDED",
       context: "License Usage Recorded",
@@ -57,7 +57,7 @@ app.get("/usage", (req, res) => {
 });
 
 app.get("/error", (req, res) => {
-  Loggers.systemLogger.error(
+  Loggers?.systemLogger?.error(
     { code: "SIMULATED_ERROR", context: "simulated error" },
     "Simulated error occurred"
   ); // Simulate an error log
@@ -67,7 +67,7 @@ app.get("/error", (req, res) => {
 // Structured logging example
 app.get("/user/:id", (req, res) => {
   const userId = req.params.id;
-  Loggers.usageLogger.info(
+  Loggers?.usageLogger?.info(
     { code: "USER_DATA_ACCESS", context: "user data api call", userId },
     "Fetching user data"
   );
@@ -75,7 +75,7 @@ app.get("/user/:id", (req, res) => {
 });
 
 // Log using child logger
-const serviceLogger = Loggers.usageLogger.child({ module: "user-service" });
+const serviceLogger = Loggers?.usageLogger?.child({ module: "user-service" });
 
 app.get("/child-log", (req, res) => {
   serviceLogger.info(
@@ -87,7 +87,7 @@ app.get("/child-log", (req, res) => {
 
 // Error handling
 app.use((error, req, res, next) => {
-  Loggers.systemLogger.error(
+  Loggers?.systemLogger?.error(
     { code: "SERVER_ERROR", context: "server error", error },
     "Unhandled exception"
   );
@@ -96,7 +96,7 @@ app.use((error, req, res, next) => {
 
 // Unhandled exceptions and rejections
 process.on("uncaughtException", (error) => {
-  Loggers.systemLogger.fatal(
+  Loggers?.systemLogger?.fatal(
     { code: "UNCAUGHT_EXCEPTION", context: "uncaught exception", error },
     "Uncaught Exception"
   );
@@ -104,7 +104,7 @@ process.on("uncaughtException", (error) => {
 });
 
 process.on("unhandledRejection", (reason) => {
-  Loggers.systemLogger.error(
+  Loggers?.systemLogger?.error(
     { code: "UNHANDLED_REJECTION", context: "unhandled rejection", reason },
     "Unhandled Rejection"
   );
@@ -112,8 +112,8 @@ process.on("unhandledRejection", (reason) => {
 
 // Start the server
 app.listen(port, () => {
-  Loggers.systemLogger.debug("Server started");
-  Loggers.systemLogger.info(
+  Loggers?.systemLogger?.debug("Server started");
+  Loggers?.systemLogger?.info(
     { code: "INITIATE_SERVER", context: "server started" },
     `Server is running on http://localhost:${port}`
   );
