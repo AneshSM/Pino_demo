@@ -1,5 +1,5 @@
 import pino from "pino";
-import Loggers from "./loggers.json" assert { type: "json" };
+import Loggers from "../config/loggers.json" assert { type: "json" };
 
 /**
  * Validates metadata passed to the logger wrapper before logging.
@@ -146,9 +146,10 @@ const createTransportConfig = (category) => {
  *
  * @param {string} loggerKey - The logger key (e.g., "validationLogger").
  * @param {string} category - The logger category (e.g., "Validation").
+ * @param {string[]} redactFields - Fields to redact in the logs.
  * @returns {pino.Logger} - The created Pino logger instance.
  */
-const createLogger = (loggerKey, loggerCategory) => {
+const createLogger = (loggerKey, loggerCategory, redactFields = []) => {
   try {
     const options = {
       level: "debug", // Logs messages up to the "debug" level
@@ -163,6 +164,12 @@ const createLogger = (loggerKey, loggerCategory) => {
       // Merge strategy to ensure flat logging structure
       mixinMergeStrategy(mergeObject, mixinObject) {
         return { ...mergeObject, ...mixinObject };
+      },
+
+      // Redact sensitive fields
+      redact: {
+        paths: redactFields,
+        censor: "[Redacted]", // Replace sensitive fields with this value
       },
 
       // Transport configurations
@@ -193,8 +200,8 @@ const generateLoggers = () => {
         );
         return acc; // Skip invalid logger configuration
       } else {
-        const { category } = loggerConfig;
-        const logger = createLogger(loggerKey, category);
+        const { category, redactFields = [] } = loggerConfig;
+        const logger = createLogger(loggerKey, category, redactFields);
         acc[loggerKey] = wrapLogger(logger, loggerKey);
       }
       return acc;
