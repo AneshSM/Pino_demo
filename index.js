@@ -1,6 +1,10 @@
 import express from "express";
 import Loggers from "./utils/pino_util.js";
-import { errorHandler, errorLogger } from "./middleware/error.middleware.js";
+import {
+  ErrorCategory,
+  errorHandler,
+  errorLogger,
+} from "./middleware/error.middleware.js";
 import { ApiError } from "./utils/error_util.js";
 
 const app = express();
@@ -19,7 +23,7 @@ app.get("/", (req, res, next) => {
   } else
     next(
       new ApiError(500, "Simulated error: GET / request failure", null, null, {
-        category: "usage",
+        category: ErrorCategory.USAGE,
         code: "USAGE_ROOT_ERROR",
         context: "Failed to get all jobs",
       })
@@ -44,7 +48,7 @@ app.get("/validation", (req, res, next) => {
         null,
         null,
         {
-          category: "validation",
+          category: ErrorCategory.VALIDATION,
           code: "VALIDATION_KEY_SUCCESS",
           context: "Failed to get all jobs",
         }
@@ -70,7 +74,7 @@ app.get("/authentication", (req, res, next) => {
         null,
         null,
         {
-          category: "authentication",
+          category: ErrorCategory.AUTHENTICATION,
           code: "AUTH_LICENSE_NOT_FOUND",
           context: "license key not found",
           message: "No matching license was found for the provided key.",
@@ -83,10 +87,10 @@ app.get("/system", (req, res, next) => {
   if (!simulateFailure) {
     Loggers?.systemLogger?.warn(
       {
-        code: "SYSTEM_INVALID_CLOCK",
-        context: "Invalid System Clock",
+        code: "SYSTEM_CLOCK",
+        context: "System Clock",
       },
-      "The system clock is inaccurate. Check your system time."
+      "The system clock: " + new Date().toLocaleString()
     );
     res.send("System endpoint");
   } else
@@ -97,7 +101,7 @@ app.get("/system", (req, res, next) => {
         null,
         null,
         {
-          category: "system",
+          category: ErrorCategory.SYSTEM,
           code: "SYSTEM_INVALID_CLOCK",
           context: "Invalid System Clock",
           message: "The system clock is inaccurate. Check your system time.",
@@ -124,7 +128,7 @@ app.get("/usage", (req, res, next) => {
         null,
         null,
         {
-          category: "usage",
+          category: ErrorCategory.USAGE,
           code: "USAGE_QUOTA_EXCEEDED",
           context: "License Quota Exceeded",
           message: "License usage limit exceeded.",
@@ -143,7 +147,7 @@ app.get("/error", (req, res, next) => {
       null,
       null,
       {
-        category: "system",
+        category: ErrorCategory.SYSTEM,
         code: "SIMULATED_ERROR",
         context: "simulated error",
         message: "Simulated error occurred",
@@ -180,7 +184,7 @@ app.get("/user/:id", (req, res, next) => {
         null,
         null,
         {
-          category: "usage",
+          category: ErrorCategory.USAGE,
           code: "USER_DATA_ACCESS_ERROR",
           context: "Failed to valdate user access",
           message: "Unauthorized user access",

@@ -1,126 +1,173 @@
 import { AxiosError } from "axios";
-import { FS_Error, GitError } from "../utils/error_util.js";
+import {
+  ApiError,
+  CustomError,
+  FS_Error,
+  GitError,
+} from "../utils/error_util.js";
 import loggers from "../utils/pino_util.js";
 
 /**
- * Error logging middleware
- * Logs errors if they meet specified criteria.
+ * Enum-like object for Error Categories
+ */
+const ErrorCategory = {
+  SYSTEM: "system",
+  AUTHENTICATION: "authentication",
+  VALIDATION: "validation",
+  USAGE: "usage",
+};
+
+/**
+ * Helper function to get the appropriate logger method based on category and warning status
+ * @param {string} category
+ * @param {boolean} isWarning
+ * @returns {Function}
+ */
+const getLoggerMethod = (category, isWarning) => {
+  const logCategory = {
+    [ErrorCategory.SYSTEM]: loggers.systemLogger,
+    [ErrorCategory.AUTHENTICATION]: loggers.authLogger,
+    [ErrorCategory.VALIDATION]: loggers.validationLogger,
+    [ErrorCategory.USAGE]: loggers.usageLogger,
+  };
+
+  const logger = logCategory[category];
+  return isWarning ? logger?.warn : logger?.error;
+};
+
+/**
+ * Error Logger Middleware
+ * Logs error details if logger property exists in the error object
  */
 const errorLogger = (err, req, res, next) => {
-  try {
-    if (err?.logger) {
-      // Define loggable error criteria/variants
-      let { category, message, variant, ...loggerData } = err.logger;
-      // req.path
-      let loggerMethod;
-      const isWarning = err.statusCode === 400;
+  if (!err?.logger) {
+    return next(err);
+  }
 
-      message = message || err.message;
-      loggerData["error"] = JSON.parse(JSON.stringify(err?.error));
+  const { logger } = err;
+  const { category, message: loggerMessage, ...loggerData } = logger;
+  const isWarning = err.statusCode === 400;
 
-      if (category === "system") {
-        loggerMethod = isWarning
-          ? loggers?.systemLogger?.warn
-          : loggers?.systemLogger?.error;
-        loggerMethod(loggerData, message);
-      } else if (category === "authentication") {
-        loggerMethod = isWarning
-          ? loggers?.authLogger?.warn
-          : loggers?.authLogger?.error;
-        loggerMethod(loggerData, message);
-      } else if (category === "validation") {
-        loggerMethod = isWarning
-          ? loggers?.validationLogger?.warn
-          : loggers?.validationLogger?.error;
-        loggerMethod(loggerData, message);
-      } else if (category === "usage") {
-        loggerMethod = isWarning
-          ? loggers?.usageLogger?.warn
-          : loggers?.usageLogger?.error;
-        loggerMethod(loggerData, message);
-      }
-    }
+  const message = loggerMessage || err.message;
+  loggerData.error = JSON.parse(JSON.stringify(err.error || {}));
 
-    // Pass error to the next middleware for error handling
-    err.logger = null;
-    next(err);
-  } catch (loggingError) {
-    console.error("Error logging failed:", loggingError);
+  const logMethod = getLoggerMethod(category, isWarning);
+  if (logMethod) {
+    logMethod(loggerData, message);
+  }
+
+  // Clear logger and pass to next middleware
+  err.logger = null;
+  next(err);
+};
+
+/**
+ * Helper function to safely get statusCode from various error types
+ * @param {Error} err
+ * @returns {number}
+ */
+const getStatusCode = (err) => {
+  if (err instanceof AxiosError) {
+    return err.response?.status || 500;
+  }
+  return err.statusCode || 500;
+};
+
+/**
+ * Helper function to handle Axios errors
+ * @param {AxiosError} err
+ */
+const handleAxiosError = (err) => {
+  console.error("-------- Axios Error --------");
+  if (err.response) {
+    console.error("Response Error:", {
+      data: err.response.data,
+      status: err.response.status,
+      headers: err.response.headers,
+    });
+  } else if (err.request) {
+    console.error("Request Error:", err.request);
+  } else {
+    console.error("Axios Configuration Error:", {
+      message: err.message,
+      config: err.config,
+    });
   }
 };
 
 /**
- * Error handler middleware
- * Error response are consoled with context and responded with their status code
+ * Helper function to handle Git errors
+ * @param {GitError} err
  */
-// Error Handling Middleware
+const handleGitError = (err) => {
+  console.error("-------- Git Error --------", {
+    log: err.log,
+    path: err.path,
+    command: err.command,
+  });
+  err.statusCode = 500; // Assign custom status code for Git errors
+};
+
+/**
+ * Helper function to handle file system errors
+ * @param {CustomError} error
+ * @returns {string}
+ */
+const handleFsError = (error) => {
+  const errorMessages = {
+    EACCES: "Permission denied.",
+    ENOENT: "File or directory does not exist.",
+    EBUSY: "Resource is busy or locked.",
+    EEXIST: "File or directory already exists.",
+    EPERM: "Operation not permitted.",
+    ENOTDIR: "Expected a directory but found something else.",
+  };
+
+  return errorMessages[error.code] || `Unknown error: ${error.message}`;
+};
+
+/**
+ * Helper function to handle Custom errors
+ * @param {CustomError} err
+ */
+const handleCustomError = (err) => {
+  console.error("-------- Custom Error --------");
+  err.message = "Repository folder is busy or locked";
+  handleFsError(err);
+};
+
+/**
+ * Error Handler Middleware
+ * Handles various error types and sends a structured response
+ */
 const errorHandler = (err, req, res, next) => {
   console.log("-------- Error Handler Middleware --------");
-  console.log(err); // console log the error object for debugging
+  console.error(err);
 
-  // Handle Axios Errors
+  // Handle specific error types
   if (err instanceof AxiosError) {
-    console.log("-------- Axios Error --------");
-
-    if (err.response) {
-      // Server responded with an error status code
-      console.error("Response Error:", {
-        data: err.response.data,
-        status: err.response.status,
-        headers: err.response.headers,
-      });
-    } else if (err.request) {
-      // Request was made but no response was received
-      console.error("Request Error:", err.request);
-    } else {
-      // Error occurred during request setup
-      console.error("Axios Configuration Error:", {
-        message: err.message,
-        config: err.config,
-      });
-    }
+    handleAxiosError(err);
+  } else if (err instanceof FS_Error) {
+    console.error("-------- File System Error --------", { path: err.path });
+  } else if (err instanceof GitError) {
+    handleGitError(err);
+  } else if (err instanceof CustomError) {
+    handleCustomError(err);
   }
 
-  // Handle File System Errors (if applicable)
-  if (err instanceof FS_Error) {
-    console.log("-------- File System Error --------");
-    console.error("Path:", err.path);
-  }
-
-  // Handle Git Errors (if applicable)
-  if (err instanceof GitError) {
-    console.log("-------- Git Error --------");
-    console.error({
-      log: err.log,
-      path: err.path,
-      command: err.command,
-    });
-
-    // Set a custom status code for Git errors
-    err.statusCode = 500;
-  }
-
-  // Handle Specific Error Codes
-  if (err.code === "EBUSY") {
-    console.log("-------- Resource Busy Error --------");
-    err.statusCode = 500;
-    err.message = "Repository folder is busy or locked";
-  }
-
-  // Set Default Status and Message
-  const statusCode = err.statusCode || 500;
+  // Set default status and message for error response
+  const statusCode = getStatusCode(err);
   const message = err.message || "An unexpected error occurred";
-  const errorData = err.data || undefined;
 
-  // Send Error Response
+  // Safely access `data` if it exists
+  const data = "data" in err ? err.data : null;
+
   res.status(statusCode).json({
     error: true,
-    success: false,
-    status: statusCode,
     message,
-    data: errorData,
-    stack: err.stack,
+    data,
+    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
   });
 };
 
-export { errorHandler, errorLogger };
+export { errorHandler, errorLogger, ErrorCategory };

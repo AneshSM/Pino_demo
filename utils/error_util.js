@@ -156,6 +156,40 @@ class QlikError extends ApiError {
   }
 }
 
+/**
+ * CustomError class that extends the built-in Error object
+ * Adds specific properties to mimic NodeJS.ErrnoException
+ */
+class CustomError extends Error {
+  /**
+   * @param {string} message - Error message
+   * @param {string} code - Known error code (e.g., "EACCES", "ENOENT")
+   * @param {string} [path] - Optional file path related to the error
+   * @param {string} [syscall] - Optional system call that caused the error
+   * @param {number} [errno] - Optional numeric error number
+   */
+  constructor(
+    message,
+    code,
+    path = undefined,
+    syscall = undefined,
+    errno = undefined
+  ) {
+    super(message); // Call parent class (Error) constructor
+
+    this.name = "CustomError"; // Set error name
+    this.code = code; // Known error code
+    this.path = path; // Path associated with the error
+    this.syscall = syscall; // System call associated with the error
+    this.errno = errno; // Numeric error number
+
+    // Capture the stack trace (helps debugging)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, CustomError);
+    }
+  }
+}
+
 export {
   ApiError,
   ValidationError,
@@ -164,4 +198,5 @@ export {
   AuthError,
   DataBaseError,
   QlikError,
+  CustomError,
 };
