@@ -2,6 +2,17 @@ import pino from "pino";
 import Loggers from "../config/loggers.json" assert { type: "json" };
 
 /**
+ * Enum-like object for Log Categories
+ */
+
+const logsCategory = {
+  SYSTEM: "system",
+  AUTHENTICATION: "authentication",
+  VALIDATION: "validation",
+  USAGE: "usage",
+};
+
+/**
  * Validates metadata passed to the logger wrapper before logging.
  * Ensures the metadata contains required fields as per the schema.
  *
@@ -118,7 +129,7 @@ const createTransportConfig = (category) => {
       target: "pino/file",
       level: "error",
       options: {
-        destination: `./logs/${category}/error-${date}.log`,
+        destination: `./logs/${category}/errors/error-${date}.log`,
         mkdir: true,
       },
     },
@@ -126,7 +137,7 @@ const createTransportConfig = (category) => {
       target: "pino/file",
       level: "warn",
       options: {
-        destination: `./logs/${category}/warn-${date}.log`,
+        destination: `./logs/${category}/warnings/warn-${date}.log`,
         mkdir: true,
       },
     },
@@ -134,7 +145,7 @@ const createTransportConfig = (category) => {
       target: "pino/file",
       level: "info",
       options: {
-        destination: `./logs/${category}/info-${date}.log`,
+        destination: `./logs/${category}/info/info-${date}.log`,
         mkdir: true,
       },
     },
@@ -235,4 +246,4 @@ try {
   process.exit(1); // Terminate the process if loggers fail to initialize
 }
 
-export default loggers;
+export { loggers, logsCategory };

@@ -1,7 +1,11 @@
 {
   "validationLogger": {
     "category": "validation",
-    "redactFields": ["user.password", "user.ssn", "metadata.secretKey"],
+    "redactFields": [
+      "metadata.user.password",
+      "metadata.user.ssn",
+      "metadata.secretKey"
+    ],
     "required": {
       "info": ["code", "context"],
       "warn": ["code", "context"],
@@ -10,7 +14,11 @@
   },
   "authLogger": {
     "category": "authentication",
-    "redactFields": ["user.password", "user.ssn", "metadata.secretKey"],
+    "redactFields": [
+      "metadata.user.password",
+      "metadata.user.ssn",
+      "metadata.secretKey"
+    ],
     "required": {
       "info": ["code", "context"],
       "warn": ["code", "context"],
@@ -28,7 +36,11 @@
   },
   "usageLogger": {
     "category": "usage",
-    "redactFields": ["user.password", "user.ssn", "metadata.secretKey"],
+    "redactFields": [
+      "metadata.user.password",
+      "metadata.user.ssn",
+      "metadata.secretKey"
+    ],
     "required": {
       "info": ["code", "context"],
       "warn": ["code", "context"],

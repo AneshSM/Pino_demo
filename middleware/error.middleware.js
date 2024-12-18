@@ -5,17 +5,7 @@ import {
   FS_Error,
   GitError,
 } from "../utils/error_util.js";
-import loggers from "../utils/pino_util.js";
-
-/**
- * Enum-like object for Error Categories
- */
-const ErrorCategory = {
-  SYSTEM: "system",
-  AUTHENTICATION: "authentication",
-  VALIDATION: "validation",
-  USAGE: "usage",
-};
+import { loggers, logsCategory } from "../utils/pino_util.js";
 
 /**
  * Helper function to get the appropriate logger method based on category and warning status
@@ -25,10 +15,10 @@ const ErrorCategory = {
  */
 const getLoggerMethod = (category, isWarning) => {
   const logCategory = {
-    [ErrorCategory.SYSTEM]: loggers.systemLogger,
-    [ErrorCategory.AUTHENTICATION]: loggers.authLogger,
-    [ErrorCategory.VALIDATION]: loggers.validationLogger,
-    [ErrorCategory.USAGE]: loggers.usageLogger,
+    [logsCategory.SYSTEM]: loggers.systemLogger,
+    [logsCategory.AUTHENTICATION]: loggers.authLogger,
+    [logsCategory.VALIDATION]: loggers.validationLogger,
+    [logsCategory.USAGE]: loggers.usageLogger,
   };
 
   const logger = logCategory[category];
@@ -170,4 +160,4 @@ const errorHandler = (err, req, res, next) => {
   });
 };
 
-export { errorHandler, errorLogger, ErrorCategory };
+export { errorHandler, errorLogger };

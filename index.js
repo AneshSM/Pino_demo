@@ -1,44 +1,51 @@
 import express from "express";
-import Loggers from "./utils/pino_util.js";
-import {
-  ErrorCategory,
-  errorHandler,
-  errorLogger,
-} from "./middleware/error.middleware.js";
+import { loggers as Loggers, logsCategory } from "./utils/pino_util.js";
+import { errorHandler, errorLogger } from "./middleware/error.middleware.js";
 import { ApiError } from "./utils/error_util.js";
+import responseLogger from "./middleware/response.middleware.js";
 
 const app = express();
 const port = 3000;
 
-const simulateFailure = true;
-
+const simulateFailure = false;
+app.use(responseLogger);
 // Routes
 app.get("/", (req, res, next) => {
   if (!simulateFailure) {
-    Loggers?.systemLogger?.info(
-      { code: "ROOT_API", context: "root api call" },
-      "GET / request received"
-    ); // Use request logger
+    // Direct logger usage
+    Loggers.systemLogger.info(
+      { code: "HEALTH_CHECK", context: "health check call" },
+      "Health check"
+    );
+
+    // Centralized response logger interceptor usage
+    res.logger = {
+      category: logsCategory.USAGE,
+      code: "ROOT_API",
+      context: "root api call",
+      message: "GET / request received",
+    };
     res.send("Hello, Pino Loggers!");
-  } else
+  } else {
+    // Centralized error logger middleware usage
     next(
       new ApiError(500, "Simulated error: GET / request failure", null, null, {
-        category: ErrorCategory.USAGE,
+        category: logsCategory.USAGE,
         code: "USAGE_ROOT_ERROR",
         context: "Failed to get all jobs",
       })
     );
+  }
 });
 
 app.get("/validation", (req, res, next) => {
   if (!simulateFailure) {
-    Loggers?.validationLogger?.info(
-      {
-        code: "VALIDATION_KEY_SUCCESS",
-        context: "Successull license key validation",
-      },
-      "The license key validated successfully"
-    );
+    res.logger = {
+      category: logsCategory.VALIDATION,
+      code: "VALIDATION_KEY_SUCCESS",
+      context: "Successull license key validation",
+      message: "The license key validated successfully",
+    };
     res.send("Validation endpoint");
   } else
     next(
@@ -48,7 +55,7 @@ app.get("/validation", (req, res, next) => {
         null,
         null,
         {
-          category: ErrorCategory.VALIDATION,
+          category: logsCategory.VALIDATION,
           code: "VALIDATION_KEY_SUCCESS",
           context: "Failed to get all jobs",
         }
@@ -58,13 +65,12 @@ app.get("/validation", (req, res, next) => {
 
 app.get("/authentication", (req, res, next) => {
   if (!simulateFailure) {
-    Loggers?.authLogger?.error(
-      {
-        code: "AUTH_LICENSE_SUCCESS",
-        context: "Successful authentication",
-      },
-      "Matching license was found for the provided key."
-    );
+    res.logger = {
+      category: logsCategory.AUTHENTICATION,
+      code: "AUTH_LICENSE_SUCCESS",
+      context: "Successful authentication",
+      message: "Matching license was found for the provided key.",
+    };
     res.send("Authentication endpoint");
   } else
     next(
@@ -74,7 +80,7 @@ app.get("/authentication", (req, res, next) => {
         null,
         null,
         {
-          category: ErrorCategory.AUTHENTICATION,
+          category: logsCategory.AUTHENTICATION,
           code: "AUTH_LICENSE_NOT_FOUND",
           context: "license key not found",
           message: "No matching license was found for the provided key.",
@@ -85,13 +91,12 @@ app.get("/authentication", (req, res, next) => {
 
 app.get("/system", (req, res, next) => {
   if (!simulateFailure) {
-    Loggers?.systemLogger?.warn(
-      {
-        code: "SYSTEM_CLOCK",
-        context: "System Clock",
-      },
-      "The system clock: " + new Date().toLocaleString()
-    );
+    res.logger = {
+      category: logsCategory.SYSTEM,
+      code: "SYSTEM_CLOCK",
+      context: "System Clock",
+      message: "The system clock: " + new Date().toLocaleString(),
+    };
     res.send("System endpoint");
   } else
     next(
@@ -101,7 +106,7 @@ app.get("/system", (req, res, next) => {
         null,
         null,
         {
-          category: ErrorCategory.SYSTEM,
+          category: logsCategory.SYSTEM,
           code: "SYSTEM_INVALID_CLOCK",
           context: "Invalid System Clock",
           message: "The system clock is inaccurate. Check your system time.",
@@ -112,13 +117,12 @@ app.get("/system", (req, res, next) => {
 
 app.get("/usage", (req, res, next) => {
   if (!simulateFailure) {
-    Loggers?.usageLogger?.info(
-      {
-        code: "USAGE_RECORDED",
-        context: "License Usage Recorded",
-      },
-      "Usage recorded successfully for license key."
-    );
+    res.logger = {
+      category: logsCategory.USAGE,
+      code: "USAGE_RECORDED",
+      context: "License Usage Recorded",
+      message: "Usage recorded successfully for license key.",
+    };
     res.send("Usage endpoint");
   } else
     next(
@@ -128,7 +132,7 @@ app.get("/usage", (req, res, next) => {
         null,
         null,
         {
-          category: ErrorCategory.USAGE,
+          category: logsCategory.USAGE,
           code: "USAGE_QUOTA_EXCEEDED",
           context: "License Quota Exceeded",
           message: "License usage limit exceeded.",
@@ -147,7 +151,7 @@ app.get("/error", (req, res, next) => {
       null,
       null,
       {
-        category: ErrorCategory.SYSTEM,
+        category: logsCategory.SYSTEM,
         code: "SIMULATED_ERROR",
         context: "simulated error",
         message: "Simulated error occurred",
@@ -160,21 +164,20 @@ app.get("/error", (req, res, next) => {
 app.get("/user/:id", (req, res, next) => {
   if (!simulateFailure) {
     const userId = req.params.id;
-    Loggers?.usageLogger?.info(
-      {
-        code: "USER_DATA_ACCESS",
-        context: "user data api call",
+    res.logger = {
+      category: logsCategory.USAGE,
+      code: "USER_DATA_ACCESS",
+      context: "user data api call",
+      message: "Fetching user data",
+      metadata: {
+        secretKey: "cscdcsdwq3453",
         user: {
           userId,
           password: "1234",
           ssn: "65432vsdc",
         },
-        metadata: {
-          secretKey: "cscdcsdwq3453",
-        },
       },
-      "Fetching user data"
-    );
+    };
     res.send(`User data for user ${userId}`);
   } else
     next(
@@ -184,7 +187,7 @@ app.get("/user/:id", (req, res, next) => {
         null,
         null,
         {
-          category: ErrorCategory.USAGE,
+          category: logsCategory.USAGE,
           code: "USER_DATA_ACCESS_ERROR",
           context: "Failed to valdate user access",
           message: "Unauthorized user access",
