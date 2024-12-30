@@ -1,50 +1,39 @@
 {
-  "validationLogger": {
-    "category": "validation",
+  "common": {
+    "requiredFields": {
+      "info": ["code", "context"],
+      "warn": ["code", "context", "reason"],
+      "error": ["code", "context", "error"]
+    },
     "redactFields": [
       "metadata.user.password",
       "metadata.user.ssn",
       "metadata.secretKey"
-    ],
-    "required": {
-      "info": ["code", "context"],
-      "warn": ["code", "context"],
-      "error": ["code", "context"]
-    }
+    ]
   },
-  "authLogger": {
-    "category": "authentication",
-    "redactFields": [
-      "metadata.user.password",
-      "metadata.user.ssn",
-      "metadata.secretKey"
-    ],
-    "required": {
-      "info": ["code", "context"],
-      "warn": ["code", "context"],
-      "error": ["code", "context"]
-    }
-  },
-  "systemLogger": {
-    "category": "system",
-    "redactFields": ["config.apiKey", "config.authToken"],
-    "required": {
-      "info": ["code", "context"],
-      "warn": ["code", "context"],
-      "error": ["code", "context"]
-    }
-  },
-  "usageLogger": {
-    "category": "usage",
-    "redactFields": [
-      "metadata.user.password",
-      "metadata.user.ssn",
-      "metadata.secretKey"
-    ],
-    "required": {
-      "info": ["code", "context"],
-      "warn": ["code", "context"],
-      "error": ["code", "context"]
+  "loggers": {
+    "validationLogger": {
+      "category": "validation",
+      "customRequiredFields": {
+        "warn": ["code", "context", "customAction"],
+        "error": ["code", "context", "validationStep"]
+      }
+    },
+    "authLogger": {
+      "category": "authentication",
+      "customRequiredFields": {
+        "error": ["code", "context", "authMethod"]
+      }
+    },
+    "systemLogger": {
+      "category": "system",
+      "customRequiredFields": {
+        "fatal": ["code", "context", "serviceName"]
+      },
+      "redactFields": ["metadata.config.apiKey", "metadata.config.authToken"]
+    },
+    "usageLogger": {
+      "category": "usage"
     }
   }
 }

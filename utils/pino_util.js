@@ -23,7 +23,12 @@ const logsCategory = {
  * @throws {Error} - If required fields are missing.
  */
 const validateMetadata = (loggerKey, method, schema, metadata) => {
-  const requiredFields = schema[loggerKey]?.["required"]?.[method] || [];
+  const loggerConfig = schema?.loggers?.[loggerKey];
+  const commonFields = schema?.common?.requiredFields?.[method] || [];
+  const customFields = loggerConfig?.customRequiredFields?.[method] || [];
+
+  // Merge common and custom fields (custom overrides common if specified)
+  const requiredFields = [...new Set([...commonFields, ...customFields])];
   if (!metadata || typeof metadata !== "object") {
     if (requiredFields.length > 0) {
       throw new Error(
