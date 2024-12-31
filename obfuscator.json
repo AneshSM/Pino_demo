@@ -1,0 +1,17 @@
+{
+  "compact": true,
+  "identifierNamesGenerator": "hexadecimal",
+  "log": true,
+  "simplify": true,
+  "stringArray": true,
+  "stringArrayEncoding": ["rc4"],
+  "stringArrayIndexShift": true,
+  "stringArrayRotate": true,
+  "stringArrayShuffle": true,
+  "stringArrayWrappersCount": 1,
+  "stringArrayWrappersChainedCalls": true,
+  "stringArrayWrappersParametersMaxCount": 2,
+  "stringArrayWrappersType": "variable",
+  "stringArrayIndexesType": ["hexadecimal-number"],
+  "stringArrayThreshold": 1.0
+}
