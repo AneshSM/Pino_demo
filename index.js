@@ -203,6 +203,7 @@ app.use(errorHandler);
 
 // Unhandled exceptions and rejections
 process.on("uncaughtException", (error) => {
+  console.log("uncaught exception", error);
   Loggers?.systemLogger?.fatal(
     { code: "UNCAUGHT_EXCEPTION", context: "uncaught exception", error },
     "Uncaught Exception"
@@ -211,6 +212,7 @@ process.on("uncaughtException", (error) => {
 });
 
 process.on("unhandledRejection", (reason) => {
+  console.log("unhandled rejection", error);
   Loggers?.systemLogger?.error(
     { code: "UNHANDLED_REJECTION", context: "unhandled rejection", reason },
     "Unhandled Rejection"

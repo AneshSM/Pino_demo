@@ -15,20 +15,25 @@
     "validationLogger": {
       "category": "validation",
       "customRequiredFields": {
-        "warn": ["code", "context", "customAction"],
-        "error": ["code", "context", "validationStep"]
+        "info": [],
+        "warn": [],
+        "error": []
       }
     },
     "authLogger": {
       "category": "authentication",
       "customRequiredFields": {
-        "error": ["code", "context", "authMethod"]
+        "info": [],
+        "warn": [],
+        "error": []
       }
     },
     "systemLogger": {
       "category": "system",
       "customRequiredFields": {
-        "fatal": ["code", "context", "serviceName"]
+        "info": [],
+        "warn": [],
+        "error": []
       },
       "redactFields": ["metadata.config.apiKey", "metadata.config.authToken"]
     },

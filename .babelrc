@@ -1,0 +1,13 @@
+{
+  "plugins": ["@babel/plugin-syntax-import-assertions"],
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "targets": {
+          "node": "current" // This ensures Babel compiles code for the current version of Node.js
+        }
+      }
+    ]
+  ]
+}

@@ -22,32 +22,37 @@ const logsCategory = {
  * @param {Object} metadata - Metadata object to validate.
  * @throws {Error} - If required fields are missing.
  */
-const validateMetadata = (loggerKey, method, schema, metadata) => {
-  const loggerConfig = schema?.loggers?.[loggerKey];
-  const commonFields = schema?.common?.requiredFields?.[method] || [];
-  const customFields = loggerConfig?.customRequiredFields?.[method] || [];
+const validateFields = (loggerKey, method, schema, metadata) => {
+  try {
+    const loggerConfig = schema?.loggers?.[loggerKey];
+    const commonFields = schema?.common?.requiredFields?.[method] || [];
+    const customFields = loggerConfig?.customRequiredFields?.[method] || [];
 
-  // Merge common and custom fields (custom overrides common if specified)
-  const requiredFields = [...new Set([...commonFields, ...customFields])];
-  if (!metadata || typeof metadata !== "object") {
-    if (requiredFields.length > 0) {
-      throw new Error(
-        `Missing required metadata for ${loggerKey}.${method}. Required fields: ${requiredFields.join(
-          ", "
-        )}`
+    // Merge common and custom fields (custom overrides common if specified)
+    const requiredFields = [...new Set([...commonFields, ...customFields])];
+    if (!metadata || typeof metadata !== "object") {
+      if (requiredFields.length > 0) {
+        throw new Error(
+          `Missing required metadata for ${loggerKey}.${method}. Required fields: ${requiredFields.join(
+            ", "
+          )}`
+        );
+      }
+    } else {
+      const missingFields = requiredFields.filter(
+        (field) => !(field in metadata)
       );
+      if (missingFields.length > 0) {
+        throw new Error(
+          `Missing required fields for ${loggerKey}.${method}: ${missingFields.join(
+            ", "
+          )}`
+        );
+      }
     }
-  } else {
-    const missingFields = requiredFields.filter(
-      (field) => !(field in metadata)
-    );
-    if (missingFields.length > 0) {
-      throw new Error(
-        `Missing required fields for ${loggerKey}.${method}: ${missingFields.join(
-          ", "
-        )}`
-      );
-    }
+  } catch (error) {
+    console.log("Error while validating fields", error);
+    throw error;
   }
 };
 
@@ -62,7 +67,7 @@ const validateMetadata = (loggerKey, method, schema, metadata) => {
  */
 const wrapLoggerMethod = (originalMethod, loggerKey, method) => {
   return (metadata, msg, ...args) => {
-    validateMetadata(loggerKey, method, Loggers, metadata); // Validate metadata
+    validateFields(loggerKey, method, Loggers, metadata); // Validate metadata
     return originalMethod(metadata, msg, ...args); // Call the original method
   };
 };
@@ -101,7 +106,7 @@ const validateLoggerConfig = (config) => {
     throw new Error("Invalid or missing `loggers.json` configuration.");
   }
   // Ensure all keys and values are valid
-  Object.entries(config).forEach(([key, value]) => {
+  Object.entries(config.loggers).forEach(([key, value]) => {
     if (
       typeof key !== "string" ||
       typeof value !== "object" ||
@@ -137,6 +142,9 @@ const createTransportConfig = (category) => {
         destination: `./logs/${category}/errors/error-${date}.log`,
         mkdir: true,
       },
+      worker: {
+        autoEnd: true, // Enables auto-closing of the worker when the process ends
+      },
     },
     {
       target: "pino/file",
@@ -145,6 +153,9 @@ const createTransportConfig = (category) => {
         destination: `./logs/${category}/warnings/warn-${date}.log`,
         mkdir: true,
       },
+      worker: {
+        autoEnd: true, // Enables auto-closing of the worker when the process ends
+      },
     },
     {
       target: "pino/file",
@@ -152,6 +163,9 @@ const createTransportConfig = (category) => {
       options: {
         destination: `./logs/${category}/info/info-${date}.log`,
         mkdir: true,
+      },
+      worker: {
+        autoEnd: true, // Enables auto-closing of the worker when the process ends
       },
     },
   ];
@@ -208,20 +222,27 @@ const createLogger = (loggerKey, loggerCategory, redactFields = []) => {
 const generateLoggers = () => {
   try {
     const config = validateLoggerConfig(Loggers);
+    const { loggers: loggersConfig, common: commonConfig } = config;
 
-    return Object.entries(config).reduce((acc, [loggerKey, loggerConfig]) => {
-      if (!loggerKey || !loggerConfig || !loggerConfig?.category) {
-        console.warn(
-          `Skipping invalid logger configuration: ${loggerKey} -> ${loggerConfig}`
-        );
-        return acc; // Skip invalid logger configuration
-      } else {
-        const { category, redactFields = [] } = loggerConfig;
-        const logger = createLogger(loggerKey, category, redactFields);
-        acc[loggerKey] = wrapLogger(logger, loggerKey);
-      }
-      return acc;
-    }, {});
+    return Object.entries(loggersConfig).reduce(
+      (acc, [loggerKey, loggerConfig]) => {
+        if (!loggerKey || !loggerConfig || !loggerConfig?.category) {
+          console.warn(
+            `Skipping invalid logger configuration: ${loggerKey} -> ${loggerConfig}`
+          );
+          return acc; // Skip invalid logger configuration
+        } else {
+          const { category, redactFields = [] } = loggerConfig;
+          const logger = createLogger(loggerKey, category, [
+            ...(commonConfig?.redactFields || []),
+            ...redactFields,
+          ]);
+          acc[loggerKey] = wrapLogger(logger, loggerKey);
+        }
+        return acc;
+      },
+      {}
+    );
   } catch (error) {
     console.error("Error generating loggers:", error);
     throw new Error("Failed to generate loggers.");
